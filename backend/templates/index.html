@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Data and Prediction</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: linear-gradient(to right, #a8c8e5, #e0f7fa); /* สีพื้นหลังแบบกราเดียนต์ */
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* จัดกึ่งกลางแนวนอน */
+        }
+
+        h1 {
+            text-align: center; /* จัดกึ่งกลางหัวข้อ */
+            color: #2c3e50; /* สีหัวข้อ */
+            margin-bottom: 20px; /* ระยะห่างด้านล่างหัวข้อ */
+            transition: color 0.3s; /* เอฟเฟคเมื่อเปลี่ยนสี */
+        }
+
+        h1:hover {
+            color: #2980b9; /* เปลี่ยนสีเมื่อวางเมาส์ */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate; /* เปลี่ยนจาก collapse เป็น separate เพื่อให้สามารถใช้ border-radius ได้ */
+            border-spacing: 0; /* ปรับ spacing ของ border */
+            margin-top: 20px; /* ระยะห่างด้านบนของตาราง */
+            border-radius: 8px; /* มุมตารางมน */
+            overflow: hidden; /* ป้องกันไม่ให้มุมมนมีปัญหา */
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2); /* เพิ่มเงาให้ตาราง */
+        }
+
+        th, td {
+            border: 1px solid rgba(0, 0, 0, 0.2); /* สีขอบตาราง */
+            padding: 8px;
+            text-align: center;
+            background-color: white; /* สีพื้นหลังของเซลล์ */
+            border-radius: 8px; /* มุมมนสำหรับเซลล์ */
+        }
+
+        th {
+            background-color: #f2f2f2; /* สีพื้นหลังหัวตาราง */
+            font-weight: bold; /* ทำให้ตัวหนา */
+        }
+        
+        #prediction-result {
+            margin-top: 20px;
+            color: blue;
+            font-size: 18px;
+            text-align: center; /* จัดกึ่งกลางผลลัพธ์การพยากรณ์ */
+        }
+
+        button {
+            background-color: green; /* สีปุ่ม */
+            color: white; /* สีตัวหนังสือบนปุ่ม */
+            border: none;
+            padding: 8px 12px; /* ปรับขนาดปุ่มให้เล็กลง */
+            border-radius: 8px; /* ขอบปุ่มเป็นกรอบมน */
+            cursor: pointer;
+            font-size: 14px; /* ขนาดตัวหนังสือบนปุ่ม */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* เพิ่มเงาให้ปุ่มดูมีมิติ */
+            transition: background-color 0.3s, transform 0.1s, box-shadow 0.3s; /* เอฟเฟคที่น่าสนใจ */
+            margin-top: 10px; /* ระยะห่างระหว่างปุ่ม */
+        }
+
+        button:hover {
+            background-color: darkgreen; /* เปลี่ยนสีเมื่อวางเมาส์ */
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); /* เพิ่มเงาเมื่อวางเมาส์ */
+        }
+
+        button:active {
+            transform: scale(0.95); /* ย่อขนาดเมื่อกด */
+        }
+
+        .form-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* จัดกึ่งกลางแนวนอน */
+            margin-bottom: 20px; /* ระยะห่างด้านล่างของฟอร์ม */
+        }
+    </style>
+</head>
+<body>
+    <h1>Stock Prediction</h1>
+    <div class="form-container">
+        <form id="prediction-form">
+            <label for="symbol">Enter Stock Symbol:</label>
+            <input type="text" id="symbol" name="symbol" required>
+            <button type="submit">Predict</button>
+        </form>
+
+        <button id="load-all">Load All Stock Data</button>
+    </div>
+    <div id="prediction-result"></div>
+    
+    <h1>Stock Data</h1>
+    <table id="stock-table">
+        <thead>
+            <tr>
+                <th>Stock Symbol</th>
+                <th>Date</th>
+                <th>Open Price</th>
+                <th>High Price</th>
+                <th>Low Price</th>
+                <th>Close Price</th>
+                <th>Adjusted Close</th>
+                <th>Volume</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <canvas id="stock-chart" width="400" height="200"></canvas>
+
+    <script>
+        let chart;
+
+        document.getElementById('prediction-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const symbol = document.getElementById('symbol').value;
+            
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ symbol: symbol }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('prediction-result').textContent = data.error;
+                } else {
+                    document.getElementById('prediction-result').textContent = 
+                        `Prediction for ${data.symbol}: ${data.prediction.toFixed(3)}`;
+
+                    const tableBody = document.querySelector('#stock-table tbody');
+                    tableBody.innerHTML = '';
+                    data.data.forEach(row => {
+                        const newRow = document.createElement('tr');
+                        newRow.innerHTML = `
+                            <td>${row.symbol || symbol}</td>
+                            <td>${new Date(row.date).toLocaleDateString('th-TH', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                            })}</td>
+                            <td>${parseFloat(row.open).toFixed(3)}</td>
+                            <td>${parseFloat(row.high).toFixed(3)}</td>
+                            <td>${parseFloat(row.low).toFixed(3)}</td>
+                            <td>${parseFloat(row.close).toFixed(3)}</td>
+                            <td>${parseFloat(row.adjClose).toFixed(3)}</td>
+                            <td>${row.volume}</td>
+                        `;
+                        tableBody.appendChild(newRow);
+                    });
+
+                    if (chart) {
+                        chart.destroy();
+                    }
+
+                    const ctx = document.getElementById('stock-chart').getContext('2d');
+                    chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.data.map(row => new Date(row.date).toLocaleDateString('th-TH', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                            })),
+                            datasets: [{
+                                label: 'Price',
+                                data: data.data.map(row => parseFloat(row.close).toFixed(3)),
+                                borderColor: 'blue',
+                                fill: false
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                x: {
+                                    display: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Date'
+                                    },
+                                    ticks: {
+                                        autoSkip: true,
+                                        maxTicksLimit: 10
+                                    }
+                                },
+                                y: {
+                                    display: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Price'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(error => {
+                document.getElementById('prediction-result').textContent = 'Error occurred while predicting.';
+                console.error('Error:', error);
+            });
+        });
+
+        document.getElementById('load-all').addEventListener('click', function() {
+            fetch('/all-stocks')
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                const tableBody = document.querySelector('#stock-table tbody');
+                tableBody.innerHTML = '';
+
+                data.forEach(row => {
+                    const newRow = document.createElement('tr');
+                    newRow.innerHTML = `
+                        <td>${row.symbol || 'N/A'}</td>
+                        <td>${new Date(row.date).toLocaleDateString('th-TH', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                        })}</td>
+                        <td>${parseFloat(row.open).toFixed(3)}</td>
+                        <td>${parseFloat(row.high).toFixed(3)}</td>
+                        <td>${parseFloat(row.low).toFixed(3)}</td>
+                        <td>${parseFloat(row.close).toFixed(3)}</td>
+                        <td>${parseFloat(row.adjClose).toFixed(3)}</td>
+                        <td>${row.volume}</td>
+                    `;
+                    tableBody.appendChild(newRow);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading all stocks:', error);
+                document.getElementById('prediction-result').textContent = 'Error loading stock data';
+            });
+        });
+    </script>
+</body>
+</html>

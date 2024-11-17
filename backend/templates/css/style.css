@@ -1,0 +1,40 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #e0f7fa; /* เปลี่ยนสีพื้นหลังเป็นสีฟ้าอ่อน */
+    color: #333;
+}
+
+.container {
+    width: 50%;
+    margin: 100px auto;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+input[type="text"] {
+    padding: 10px;
+    margin: 10px 0;
+    width: 80%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+button {
+    padding: 10px 15px;
+    background-color: #4caf50; /* เปลี่ยนสีพื้นหลังของปุ่มเป็นเขียว */
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s; /* เพิ่มเอฟเฟกต์การเปลี่ยนสีและการขยาย */
+}
+
+button:hover {
+    background-color: #388e3c; /* เปลี่ยนสีเมื่อชี้ไปที่ปุ่ม */
+}
+
+button:active {
+    transform: scale(0.95); /* ขยายขนาดปุ่มเมื่อกด */
+}
